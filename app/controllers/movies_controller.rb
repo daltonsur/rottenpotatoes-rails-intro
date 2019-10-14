@@ -11,19 +11,39 @@ class MoviesController < ApplicationController
   end
 
   def index
+    redirect = false
+    if !params.key?(:ratings) && session.key?(:ratings)
+      redirect = true
+      params[:ratings] = session[:ratings]
+    end
+    if !params.key?(:sort) && session.key?(:sort)
+      redirect = true
+      params[:sort] = session[:sort]
+    end
+    if redirect
+      flash.keep
+      redirect_to movies_path(params)
+      return
+    end
     @all_ratings = Movie.ratings
     if params.key?(:ratings)
-      @ratings = params[:ratings].keys
-      @movies = Movie.with_ratings(@ratings)
-      return
-    elsif !params.key?(:sort)
-      @movies = Movie.all
-    elsif params[:sort] == "title"
-      @movies = Movie.order(:title)
-    elsif params[:sort] == "date"
-      @movies = Movie.order(:release_date)
+      begin
+        @ratings = params[:ratings].keys
+      rescue
+        @ratings = params[:ratings]
+      end
+    else
+      @ratings = @all_ratings
     end
-    @ratings = @all_ratings
+    session[:ratings] = @ratings
+    if params.key?(:sort)
+      @sort = params[:sort]
+    else
+      @sort = nil
+    end
+    session[:sort] = @sort
+    puts "#{@ratings} and #{@sort}"
+    @movies = Movie.where(rating: @ratings).order(@sort)
   end
 
   def new
@@ -33,7 +53,7 @@ class MoviesController < ApplicationController
   def create
     @movie = Movie.create!(movie_params)
     flash[:notice] = "#{@movie.title} was successfully created."
-    redirect_to movies_path
+    redirect_to movies_path 
   end
 
   def edit
